@@ -18,7 +18,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 SOURCE = "tarot-plum-randomizer-python"
-ALGORITHM_VERSION = "2"
+ALGORITHM_VERSION = "1"
+SCHEMA_VERSION = "2"
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 
 MAJORS = [
@@ -147,6 +148,7 @@ def package(results: list[dict[str, Any]], source_commit: str | None = None) -> 
     return {
         "source": SOURCE,
         "algorithm_version": ALGORITHM_VERSION,
+        "schema_version": SCHEMA_VERSION,
         "runtime_source_commit": source_commit or "unknown",
         "generated_at_utc": generated_at_utc_dt.isoformat(timespec="seconds"),
         "generated_at_taipei": generated_at_taipei_dt.isoformat(timespec="seconds"),
@@ -159,9 +161,7 @@ def package(results: list[dict[str, Any]], source_commit: str | None = None) -> 
 def render_text(payload: dict[str, Any]) -> str:
     lines = [
         f"來源：{payload['source']} v{payload['algorithm_version']}",
-        f"來源 commit：{payload['runtime_source_commit']}",
-        f"抽牌時間（台灣）：{payload['generated_at_taipei']}",
-        f"抽牌時間（UTC）：{payload['generated_at_utc']}",
+        f"時間：{payload['generated_at_taipei']}",
     ]
     results = payload["results"]
 
