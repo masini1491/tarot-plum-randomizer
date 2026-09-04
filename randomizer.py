@@ -15,9 +15,11 @@ import json
 import secrets
 from datetime import datetime, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 SOURCE = "tarot-plum-randomizer-python"
-ALGORITHM_VERSION = "1"
+ALGORITHM_VERSION = "2"
+TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 
 MAJORS = [
     "愚者", "魔術師", "女祭司", "女皇", "皇帝", "教皇", "戀人", "戰車", "力量", "隱者",
@@ -139,11 +141,16 @@ def make_result(method: str, count: int | None = None) -> dict[str, Any]:
     return result
 
 
-def package(results: list[dict[str, Any]]) -> dict[str, Any]:
+def package(results: list[dict[str, Any]], source_commit: str | None = None) -> dict[str, Any]:
+    generated_at_utc_dt = datetime.now(timezone.utc)
+    generated_at_taipei_dt = generated_at_utc_dt.astimezone(TAIPEI_TZ)
     return {
         "source": SOURCE,
         "algorithm_version": ALGORITHM_VERSION,
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "runtime_source_commit": source_commit or "unknown",
+        "generated_at_utc": generated_at_utc_dt.isoformat(timespec="seconds"),
+        "generated_at_taipei": generated_at_taipei_dt.isoformat(timespec="seconds"),
+        "timezone": "Asia/Taipei",
         "rng": "secrets.randbits(32) + rejection sampling",
         "results": results,
     }
@@ -152,7 +159,9 @@ def package(results: list[dict[str, Any]]) -> dict[str, Any]:
 def render_text(payload: dict[str, Any]) -> str:
     lines = [
         f"來源：{payload['source']} v{payload['algorithm_version']}",
-        f"UTC：{payload['generated_at_utc']}",
+        f"來源 commit：{payload['runtime_source_commit']}",
+        f"抽牌時間（台灣）：{payload['generated_at_taipei']}",
+        f"抽牌時間（UTC）：{payload['generated_at_utc']}",
     ]
     results = payload["results"]
 
@@ -191,6 +200,11 @@ def parse_counts(raw: str) -> list[int]:
 
 def add_common_format(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument(
+        "--source-commit",
+        default=None,
+        help="GitHub commit SHA for the canonical randomizer.py used by this run",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -250,7 +264,7 @@ def main() -> int:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
-    payload = package(results)
+    payload = package(results, source_commit=args.source_commit)
     if args.format == "json":
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
